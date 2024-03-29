@@ -28,14 +28,18 @@ namespace RaspberryPi.Web.LEDControl.Services
         {
             var devices = FtCommon.GetDevices();
             var ftDevice = devices.SingleOrDefault(x => x.Id == Convert.ToUInt32(lightUsbId, 10));
-            _settings = spiConnectionSettings ?? new(0, 3) { ClockFrequency = 2_400_000, ChipSelectLineActiveState = PinValue.Low, Mode = SpiMode.Mode0, BusId = 2 };
+            _settings = spiConnectionSettings ?? new(0, 3) { ClockFrequency = 1_000_000, DataBitLength = 8, ChipSelectLineActiveState = PinValue.Low };
+
+            foreach (var device in devices)
+            {
+                Console.WriteLine("Printing device info...");
+                PrintDeviceInfo(device);
+            }
 
             if (ftDevice == null)
             {
                 throw new Exception("Error: Initialization not possible, FT232H Converter Device must be plugged in via USB.");
             }
-
-            PrintDeviceInfo(ftDevice);
 
             _ft232hDevice = new Ft232HDevice(ftDevice);
             _spiDevice = _ft232hDevice.CreateSpiDevice(_settings);
