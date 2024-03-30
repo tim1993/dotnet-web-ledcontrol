@@ -7,7 +7,6 @@ using RaspberryPi.Web.LEDControl.Models.Messages;
 using System.Device.Gpio;
 using System.Device.Spi;
 using System.Drawing;
-using UnitsNet;
 
 namespace RaspberryPi.Web.LEDControl.Services
 {
@@ -19,7 +18,7 @@ namespace RaspberryPi.Web.LEDControl.Services
         private CancellationTokenSource? _rainbowCts;
 
         private Ws2812b _ledDevice;
-        private readonly Ft232HDevice _ft232hDevice;
+        //private readonly Ft232HDevice _ft232hDevice;
         private readonly SpiDevice _spiDevice;
         private readonly SpiConnectionSettings _settings;
         private int _numberOfLeds;
@@ -28,21 +27,25 @@ namespace RaspberryPi.Web.LEDControl.Services
         {
             var devices = FtCommon.GetDevices();
             var ftDevice = devices.SingleOrDefault(x => x.Id == Convert.ToUInt32(lightUsbId, 10));
-            _settings = spiConnectionSettings ?? new(0, 3) { ClockFrequency = 1_000_000, DataBitLength = 8, ChipSelectLineActiveState = PinValue.Low };
+            _settings = spiConnectionSettings ?? new(0, 0) { ClockFrequency = 2_400_000, DataBitLength = 8, ChipSelectLineActiveState = PinValue.Low };
 
             foreach (var device in devices)
             {
                 Console.WriteLine("Printing device info...");
                 PrintDeviceInfo(device);
             }
-
-            if (ftDevice == null)
+            
+            // using ft232H for devices without GPIO
+            /*if (ftDevice == null)
             {
                 throw new Exception("Error: Initialization not possible, FT232H Converter Device must be plugged in via USB.");
             }
 
             _ft232hDevice = new Ft232HDevice(ftDevice);
-            _spiDevice = _ft232hDevice.CreateSpiDevice(_settings);
+            _spiDevice = _ft232hDevice.CreateSpiDevice(_settings);*/
+
+            // using SpiDevice Create for GPIO of Raspberry Pi
+            _spiDevice = SpiDevice.Create(_settings);
             _numberOfLeds = (int)numberOfLeds;
             _ledDevice = new Ws2812b(_spiDevice, _numberOfLeds);
         }
