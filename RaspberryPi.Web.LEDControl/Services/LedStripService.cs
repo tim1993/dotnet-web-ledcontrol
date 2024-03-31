@@ -4,7 +4,6 @@ using Iot.Device.Ws28xx;
 using RaspberryPi.Web.LEDControl.Handlers;
 using RaspberryPi.Web.LEDControl.Models;
 using RaspberryPi.Web.LEDControl.Models.Messages;
-using System.Device.Gpio;
 using System.Device.Spi;
 using System.Drawing;
 
@@ -17,35 +16,42 @@ namespace RaspberryPi.Web.LEDControl.Services
         private Task? _rainbowTask;
         private CancellationTokenSource? _rainbowCts;
 
-        private Ws2812b _ledDevice;
-        //private readonly Ft232HDevice _ft232hDevice;
+        private readonly Ft232HDevice? _ft232hDevice;
         private readonly SpiDevice _spiDevice;
         private readonly SpiConnectionSettings _settings;
+        private Ws2812b _ledDevice;
         private int _numberOfLeds;
 
-        public LedStripService(string lightUsbId, uint numberOfLeds, SpiConnectionSettings? spiConnectionSettings = null)
+        public LedStripService(uint numberOfLeds, bool useUsbConverter, SpiConnectionSettings spiConnectionSettings, FtDevice? usbConverterDevice)
         {
             var devices = FtCommon.GetDevices();
-            var ftDevice = devices.SingleOrDefault(x => x.Id == Convert.ToUInt32(lightUsbId, 10));
-            _settings = spiConnectionSettings ?? new(0, 0) { ClockFrequency = 2_400_000, DataBitLength = 8, ChipSelectLineActiveState = PinValue.Low };
+            _settings = spiConnectionSettings;
 
             foreach (var device in devices)
             {
-                Console.WriteLine("Printing device info...");
+                Console.WriteLine("Printing all detected devices...");
                 PrintDeviceInfo(device);
             }
-            
-            // using ft232H for devices without GPIO
-            /*if (ftDevice == null)
+
+            if (useUsbConverter && usbConverterDevice == null)
             {
-                throw new Exception("Error: Initialization not possible, FT232H Converter Device must be plugged in via USB.");
+                throw new InvalidOperationException("Error: Initialization not possible, FT232H Converter Device must be plugged in via USB.");
             }
 
-            _ft232hDevice = new Ft232HDevice(ftDevice);
-            _spiDevice = _ft232hDevice.CreateSpiDevice(_settings);*/
+            if (useUsbConverter && usbConverterDevice != null)
+            {
+                // using FT232H for devices without GPIO
+                Console.WriteLine("Using detected and configured USB Converter");
+                _ft232hDevice = new Ft232HDevice(usbConverterDevice);
+                _spiDevice = _ft232hDevice.CreateSpiDevice(_settings);
+            }
+            else
+            {
+                // using SpiDevice Create for GPIO of Raspberry Pi
+                Console.WriteLine("Using GPIO of Raspberry Pi");
+                _spiDevice = SpiDevice.Create(_settings);
+            }
 
-            // using SpiDevice Create for GPIO of Raspberry Pi
-            _spiDevice = SpiDevice.Create(_settings);
             _numberOfLeds = (int)numberOfLeds;
             _ledDevice = new Ws2812b(_spiDevice, _numberOfLeds);
         }
